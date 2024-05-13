@@ -13,6 +13,10 @@ import torch
 import itertools
 import json
 
+# Check for GPU availability, switch to CPU if not available, and print a warning
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if device.type == "cpu":
+    print("Warning: CUDA not available. Switching to CPU mode.")
 
 class AutoModelGenerator(GeneratorBase):
     model_name: str
@@ -55,7 +59,7 @@ class AutoModelGenerator(GeneratorBase):
             self.model_name,
             torch_dtype=torch.bfloat16,
             **self.model_kwargs,
-            device_map="cuda"
+            device_map={device.type: device}
         )
         self.model.eval()
 
@@ -108,90 +112,4 @@ class AutoModelGenerator(GeneratorBase):
         # Removes all the pad tokens or BOS tokens on the left-hand side using the
         # pad token ID. This is more robust than looking for the string representation of
         # the pad token. Thus the prompt can begin with the literal string
-        # "<|endoftext|>" (which is a common representation of the pad token).
-        left_padding_removed = itertools.dropwhile(
-            self.__is_pad_or_bos_token_id, token_id_list
-        )
-        # Returns all tokens to the left of the first special token. This has
-        # the effect of removing all right-hand padding. Moreover, it also
-        # stops generation at other special tokens. For example, consider
-        # StarCoder 2, where a completion may reach the end of a file and then
-        # continue onto a second file: A<file_sep>B. The code below removes
-        # <file_sep>B and only produces A.
-        right_specials_removed = itertools.takewhile(
-            self.__is_normal_token_id, left_padding_removed
-        )
-        return list(right_specials_removed)
-
-    def decode_single_output(self, output_tensor, prompt):
-        output_token_ids = self.__remove_padding_and_stop_at_special_tokens(
-            output_tensor.tolist()
-        )
-        detok_hypo_str = self.tokenizer.decode(
-            output_token_ids,
-            clean_up_tokenization_spaces=False,
-            skip_special_tokens=False,
-        )
-        # Skip the prompt (which may even have stop_tokens)
-        return detok_hypo_str[len(prompt) :]
-
-    def batch_generate(
-        self,
-        prompts: List[str],
-        top_p: float,
-        temperature: float,
-        max_tokens: int,
-        stop: List[str],
-    ) -> List[str]:
-        prompts = [prompt.strip() for prompt in prompts]
-        output_tensors = self.__completion_tensors(
-            prompts,
-            max_tokens,
-            temperature,
-            top_p,
-        )
-        output_texts = [
-            stop_at_stop_token(
-                self.decode_single_output(output_tensor, prompt),
-                stop,
-            )
-            for (prompt, output_tensor) in zip(prompts, output_tensors)
-        ]
-        if self.include_prompt:
-            output_texts = [prompt + text for prompt, text in zip(prompts, output_texts)]
-        return output_texts
-
-
-def main():
-    parser = partial_arg_parser()
-    parser.add_argument("--model-name", type=str, required=True)
-    parser.add_argument(
-        "--include-prompt",
-        action="store_true",
-        help="Includes the prompt in the stored completions",
-    )
-    parser.add_argument("--flash-attention2", action="store_true")
-    parser.add_argument(
-        "--stop", type=str, required=True, help="JSON list of stop tokens"
-    )
-    args = parser.parse_args()
-    args.stop = json.loads(args.stop)
-
-    model_kwargs = {}
-    if args.flash_attention2:
-        model_kwargs["attn_implementation"] = "flash_attention2"
-
-    super_args = {
-        k: v
-        for (k, v) in vars(args).items()
-        if k not in ["model_name", "flash_attention2", "include_prompt"]
-    }
-
-    generator = AutoModelGenerator(
-        args.model_name, args.include_prompt, model_kwargs, **super_args
-    )
-    generator.generate_all()
-
-
-if __name__ == "__main__":
-    main()
+        # "
