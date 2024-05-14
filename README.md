@@ -135,3 +135,13 @@ python3 bigcode-evaluation-harness/main.py \
      --n_samples 20 \
      --allow_code_execution
 ```
+
+## Running Tests
+
+To run tests using Pytest, execute the following command:
+
+```bash
+pytest
+```
+
+This will discover and run all tests in the `tests` directory, ensuring that the code behaves as expected.
