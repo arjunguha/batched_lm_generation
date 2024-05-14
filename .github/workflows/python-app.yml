@@ -22,7 +22,7 @@ jobs:
         poetry install
         poetry source add pytorch --priority=explicit https://download.pytorch.org/whl/cpu
         poetry add --source pytorch torch
-        poetry add transformers
+        poetry add transformers accelerate
     - name: Run pytest
       run: |
         poetry run pytest
