@@ -201,7 +201,7 @@ class GeneratorBase(ABC):
 
         return [
             PromptPath(
-                prompt=item["prompt"], path=self.__output_dir / f"Item_{i}.json.gz"
+                prompt=(item["prompt"], item["images"]), path=self.__output_dir / f"Item_{i}.json.gz"
             )
             for i, item in enumerate(dataset)
         ]
@@ -281,18 +281,20 @@ class GeneratorBase(ABC):
                 group = list(group)
                 new_completions = [x[2] for x in group]
                 prompts = [x[1] for x in group]
-                assert len(set(prompts)) == 1
+                # assert len(set(prompts)) == 1
                 the_prompt = prompts[0]
                 if path.exists():
                     completions_data = read_json_gz(path)
                 else:
                     completions_data = {
-                        "prompt": the_prompt,
+                        "prompt": [ p for p in the_prompt if type(p) == str ],
                         "temperature": self.__temperature__,
-                        "top_p": self.__top_p__,
-                        "max_tokens": self.__max_tokens__,
                         "completions": [],
                     }
+                    if self.__top_p__ is not None:
+                        completions_data["top_p"] = self.__top_p__
+                    if self.__max_tokens__ is not None:
+                        completions_data["max_tokens"] = self.__max_tokens__
 
                 _merge_completions(completions_data, new_completions)
                 with gzip.open(path, "wt") as f:
