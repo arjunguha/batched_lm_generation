@@ -82,6 +82,7 @@ def partial_arg_parser():
         type=int,
         help="Limit the number of prompts to process",
     )
+    args.add_argument("--prompt-keys", type=str, required=True, help="Comma-separated names of columns in the dataset to use for the prompt")
     return args
 
 
@@ -173,6 +174,7 @@ class GeneratorBase(ABC):
         top_p: float,
         temperature: float,
         stop: List[str],
+        prompt_keys: List[str], 
     ):
         self.__dataset = dataset
         self.__dataset_split = dataset_split
@@ -185,6 +187,8 @@ class GeneratorBase(ABC):
         self.__top_p__ = top_p
         self.__temperature__ = temperature
         self.__stop = stop
+        prompt_keys = prompt_keys.split(",")
+        self.__prompt_keys = prompt_keys
 
     def __prompts_with_paths(self) -> List[PromptPath]:
         """
@@ -201,7 +205,9 @@ class GeneratorBase(ABC):
 
         return [
             PromptPath(
-                prompt=(item["prompt"], item["images"]), path=self.__output_dir / f"Item_{i}.json.gz"
+                prompt=tuple(item[p] for p in self.__prompt_keys),
+                # prompt=(item["prompt"], item["images"]), 
+                path=self.__output_dir / f"Item_{i}.json.gz"
             )
             for i, item in enumerate(dataset)
         ]
@@ -290,11 +296,13 @@ class GeneratorBase(ABC):
                         "prompt": [ p for p in the_prompt if type(p) == str ],
                         "temperature": self.__temperature__,
                         "completions": [],
+                        "top_p": self.__top_p__,
+                        "max_tokens": self.__max_tokens__,
                     }
-                    if self.__top_p__ is not None:
-                        completions_data["top_p"] = self.__top_p__
-                    if self.__max_tokens__ is not None:
-                        completions_data["max_tokens"] = self.__max_tokens__
+                    # if self.__top_p__ is not None:
+                    #     completions_data["top_p"] = self.__top_p__
+                    # if self.__max_tokens__ is not None:
+                    #     completions_data["max_tokens"] = self.__max_tokens__
 
                 _merge_completions(completions_data, new_completions)
                 with gzip.open(path, "wt") as f:
