@@ -205,12 +205,12 @@ class GeneratorBase(ABC):
 
         return [
             PromptPath(
-                prompt=tuple(item[p] for p in self.__prompt_keys),
-                # prompt=(item["prompt"], item["images"]), 
+                prompt=item[self.__prompt_keys[0]] if len(self.__prompt_keys) == 1 else tuple(item[p] for p in self.__prompt_keys),
                 path=self.__output_dir / f"Item_{i}.json.gz"
             )
             for i, item in enumerate(dataset)
         ]
+
 
     def __remaining_prompts(self) -> Tuple[int, List[PromptPathCount]]:
         """
@@ -299,11 +299,7 @@ class GeneratorBase(ABC):
                         "top_p": self.__top_p__,
                         "max_tokens": self.__max_tokens__,
                     }
-                    # if self.__top_p__ is not None:
-                    #     completions_data["top_p"] = self.__top_p__
-                    # if self.__max_tokens__ is not None:
-                    #     completions_data["max_tokens"] = self.__max_tokens__
-
+                    
                 _merge_completions(completions_data, new_completions)
                 with gzip.open(path, "wt") as f:
                     json.dump(completions_data, f, indent=4)
