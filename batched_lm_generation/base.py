@@ -82,7 +82,9 @@ def partial_arg_parser():
         type=int,
         help="Limit the number of prompts to process",
     )
-    args.add_argument("--prompt-keys", type=str, required=True, help="Comma-separated names of columns in the dataset to use for the prompt")
+    args.add_argument(
+        "--prompt-keys", type=str, default='prompt',
+        help="Comma-separated names of columns in the dataset to use for the prompt")
     return args
 
 
