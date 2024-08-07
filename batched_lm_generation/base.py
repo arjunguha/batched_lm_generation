@@ -225,6 +225,7 @@ class GeneratorBase(ABC):
             dataset = datasets.load_from_disk(
                 self.__dataset
             )
+            dataset = dataset[self.__dataset_split]
         else:
             dataset = datasets.load_dataset(
                 self.__dataset, name=self.__dataset_config, split=self.__dataset_split
@@ -232,6 +233,9 @@ class GeneratorBase(ABC):
         
         if self.__dataset_limit:
             dataset = dataset.select(range(self.__dataset_limit))
+            
+        # dataset = dataset.filter(lambda example: 'leftright' in example['file_name'])
+        # print('data:',dataset[0])
 
         return [
             PromptPath(
@@ -340,3 +344,37 @@ class GeneratorBase(ABC):
                 _merge_completions(completions_data, new_completions)
                 with gzip.open(path, "wt") as f:
                     json.dump(completions_data, f, indent=4)
+
+    def create_fewshot_prompt_contents(self) -> List[PromptPath]:
+        if self.__load_from_disk:
+            dataset = datasets.load_from_disk(
+                self.__dataset,
+            )
+            dataset = dataset[self.__dataset_split]
+        else:
+            dataset = datasets.load_dataset(
+                self.__dataset, name=self.__dataset_config, split=self.__dataset_split
+            )
+        
+        if self.__dataset_limit:
+            dataset = dataset.select(range(self.__dataset_limit))
+        
+        # filenames = ['53_color','53_leftright','53_circle']
+        # filenames = ['53_color', '210_color', '298_color','53_leftright', '210_leftright','298_leftright','53_circle','210_circle','298_circle']
+        filenames = ['53_color', '192_color', '210_color', '268_color', '298_color','53_leftright', '192_leftright', '210_leftright', '268_leftright', '298_leftright','53_circle', '192_circle', '210_circle', '268_circle', '298_circle']
+        
+        dataset = dataset.filter(lambda example: example['file_name'] in filenames)
+        print("length",len(dataset))
+        # for item in dataset:
+        #     print(item['file_name'],item['prompt'],item['answer'])
+        
+        return [
+            PromptPath(
+                prompt=item[self.__prompt_keys[0]]
+                if len(self.__prompt_keys) == 1
+                else tuple(item[p] for p in self.__prompt_keys),
+                path="",
+                extras={key: item[key] for key in self.__extra_columns},
+            )
+            for i, item in enumerate(dataset)
+        ]
