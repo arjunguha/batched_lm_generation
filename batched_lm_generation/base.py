@@ -214,6 +214,20 @@ class GeneratorBase(ABC):
         # "".split(",") == [""] which is not what we want.
         self.__extra_columns = extra_columns.split(",") if len(extra_columns) != 0 else []
         self.__load_from_disk = load_from_disk
+        if self.__load_from_disk:
+            self.actual_dataset = datasets.load_from_disk(
+                self.__dataset
+            )
+            self.actual_dataset = self.actual_dataset[self.__dataset_split]
+        else:
+            self.actual_dataset = datasets.load_dataset(
+                self.__dataset, name=self.__dataset_config, split=self.__dataset_split
+            )
+        
+        if self.__dataset_limit:
+            self.actual_dataset = self.actual_dataset.select(range(self.__dataset_limit))
+        
+        
 
     def __prompts_with_paths(self) -> List[PromptPath]:
         """
@@ -221,18 +235,6 @@ class GeneratorBase(ABC):
         the full path to the file that should contain the completions for that
         prompt.
         """
-        if self.__load_from_disk:
-            dataset = datasets.load_from_disk(
-                self.__dataset
-            )
-        else:
-            dataset = datasets.load_dataset(
-                self.__dataset, name=self.__dataset_config, split=self.__dataset_split
-            )
-        
-        if self.__dataset_limit:
-            dataset = dataset.select(range(self.__dataset_limit))
-
         return [
             PromptPath(
                 prompt=item[self.__prompt_keys[0]]
@@ -241,7 +243,7 @@ class GeneratorBase(ABC):
                 path=self.__output_dir / f"Item_{i}.json.gz",
                 extras={key: item[key] for key in self.__extra_columns},
             )
-            for i, item in enumerate(dataset)
+            for i, item in enumerate(self.actual_dataset)
         ]
 
     def __remaining_prompts(self) -> Tuple[int, List[PromptPathCount]]:
