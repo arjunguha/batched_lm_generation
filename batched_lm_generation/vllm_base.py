@@ -24,6 +24,7 @@ class VLLMGenerator(GeneratorBase):
         self.model_name = model_name
         self.model_kwargs = model_kwargs
         self.include_prompt = include_prompt
+        self.num_gpus = num_gpus
 
     def init_model(self):
         self.model = LLM(
@@ -32,7 +33,7 @@ class VLLMGenerator(GeneratorBase):
             dtype=torch.bfloat16,
             max_model_len=2048,
             trust_remote_code=True,
-            tensor_parallel_size=num_gpus,
+            tensor_parallel_size=self.num_gpus,
             gpu_memory_utilization=0.95,
         )
 
@@ -52,7 +53,11 @@ class VLLMGenerator(GeneratorBase):
             stop=stop
         )
 
-        outputs = self.model.generate(prompts, params, use_tqdm=False)
+        outputs = []
+        for completions in self.model.generate(prompts, params, use_tqdm=False):
+            for item in completions.outputs:
+                outputs.append(item.text)
+                
         if self.include_prompt:
             outputs = [prompt + text for prompt, text in zip(prompts, outputs)]
         return outputs
