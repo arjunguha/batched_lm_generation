@@ -30,7 +30,9 @@ def read_completions_dir(p: Path) -> List[Path]:
 
 
 def _all_completions(
-    completions_data: dict, completion_limit: Optional[int]
+    completions_data: dict, 
+    completion_limit: Optional[int], 
+    with_prompts: Optional[bool]
 ) -> List[str]:
     """
     Returns all the completions in completions_data.
@@ -41,12 +43,15 @@ def _all_completions(
         for _ in range(item["count"]):
             if completion_limit is not None and count >= completion_limit:
                 return results
-            results.append(item["text"])
+            if with_prompts:
+                results.append(completions_data["prompt"] + item["text"])
+            else:
+                results.append(item["text"])
             count += 1
     return results
 
 
-def main_with_args(dir: Path, output_file: Path, completion_limit: int = None):
+def main_with_args(dir: Path, output_file: Path, completion_limit: int = None, with_prompts: bool = None):
     """
     Reads all the completions files in the directory dir and writes them to the output file.
     """
@@ -54,7 +59,8 @@ def main_with_args(dir: Path, output_file: Path, completion_limit: int = None):
     results = []
     for p in files:
         completions_data = read_json_gz(p)
-        results.append(_all_completions(completions_data, completion_limit))
+        results.append(_all_completions(completions_data, completion_limit, with_prompts))
+
     with output_file.open("w") as f:
         json.dump(results, f, indent=2)
 
@@ -74,8 +80,11 @@ def main():
     parser.add_argument(
         "output_file", type=Path, help="The file to write the completions to."
     )
+    parser.add_argument(
+        "--with-prompts", action="store_true"
+    )
     args = parser.parse_args()
-    main_with_args(args.dir, args.output_file, args.completion_limit)
+    main_with_args(args.dir, args.output_file, args.completion_limit, args.with_prompts)
 
 
 if __name__ == "__main__":
