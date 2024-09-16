@@ -75,7 +75,7 @@ def _transform(completions_data: dict, completion_limit: Optional[int]) -> List[
     return completions_data
 
 
-def main_with_args(input_dir: Path, output_dir: Path, completion_limit):
+def main_with_args(input_dir: Path, output_dir: Path, completion_limit: int, tests_field: str, language: Optional[str]):
     """
     Reads all the completions files in the directory dir and writes them to the output file.
     """
@@ -87,7 +87,10 @@ def main_with_args(input_dir: Path, output_dir: Path, completion_limit):
         completions_data = read_json_gz(p)
         output_file = output_dir / p.name
         with gzip.open(output_file, "wt") as f:
-            json.dump(_transform(completions_data, completion_limit), f)
+            completions_data = _transform(completions_data, completion_limit)
+            if language:
+                completions_data = {**completions_data, "language": language}
+            json.dump({**completions_data, "tests": completions_data[tests_field]}, f)
 
 
 def main():
@@ -98,6 +101,14 @@ def main():
         "--completion-limit",
         type=int,
         help="The maximum number of completions to output.",
+    )
+    parser.add_argument(
+        "--tests-field", type=str, default="tests",
+        help="Which field is to be used as tests in Multipl-E."
+    )
+    parser.add_argument(
+        "--language", type=str, default=None,
+        help="Optional language for Multipl-E. If not specified, assumes language field is already in extras."
     )
     parser.add_argument(
         "input_dir", type=Path, help="The directory containing the completions files."
